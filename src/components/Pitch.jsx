@@ -8,62 +8,327 @@ import {
 import { FIELD, HIT_SLOP, POSSESSION_RANGE } from '../game/constants.js';
 import { STADIUMS } from '../game/formations.js';
 import { clamp, dist } from '../game/engine.js';
+import { getDiscMeta } from '../progress/catalog.js';
 
-function drawPitch(ctx, w, h, stadiumId) {
-  const stadium = STADIUMS[stadiumId] || STADIUMS.standard;
+function seeded(n) {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function drawApron(ctx, w, h, stadium) {
+  const [a0, a1] = stadium.apron || [stadium.border || '#111', stadium.border || '#111'];
+  const apron = ctx.createLinearGradient(0, 0, w, h);
+  apron.addColorStop(0, a0);
+  apron.addColorStop(1, a1);
+  ctx.fillStyle = apron;
+  ctx.fillRect(0, 0, w, h);
+
+  // Side boards
+  ctx.fillStyle = stadium.border || '#0a0a0a';
+  ctx.fillRect(0, 0, w, 10);
+  ctx.fillRect(0, h - 10, w, 10);
+  ctx.fillRect(0, 0, 8, h);
+  ctx.fillRect(w - 8, 0, 8, h);
+
+  // Subtle board highlights
+  ctx.strokeStyle = stadium.accent || 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(6, 6, w - 12, h - 12);
+}
+
+function drawSurface(ctx, w, h, stadium) {
   const [c0, c1, c2] = stadium.grass;
-  const g = ctx.createLinearGradient(0, 0, 0, h);
+  const pad = FIELD.padding;
+  const g = ctx.createLinearGradient(0, pad, 0, h - pad);
   g.addColorStop(0, c0);
   g.addColorStop(0.5, c1);
   g.addColorStop(1, c2);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(pad - 2, pad - 2, w - pad * 2 + 4, h - pad * 2 + 4);
 
-  const stripe = h / 12;
-  for (let i = 0; i < 12; i += 1) {
-    if (i % 2 === 0) {
-      ctx.fillStyle = 'rgba(255,255,255,0.035)';
-      ctx.fillRect(0, i * stripe, w, stripe);
+  const pattern = stadium.pattern || 'mow';
+  if (pattern === 'mow') {
+    const stripe = (w - pad * 2) / 14;
+    for (let i = 0; i < 14; i += 1) {
+      if (i % 2 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.045)';
+        ctx.fillRect(pad + i * stripe, pad, stripe, h - pad * 2);
+      } else {
+        ctx.fillStyle = 'rgba(0,0,0,0.045)';
+        ctx.fillRect(pad + i * stripe, pad, stripe, h - pad * 2);
+      }
+    }
+  } else if (pattern === 'frost') {
+    const stripe = h / 16;
+    for (let i = 0; i < 16; i += 1) {
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(180,210,255,0.05)' : 'rgba(0,0,0,0.05)';
+      ctx.fillRect(pad, pad + i * stripe, w - pad * 2, stripe);
+    }
+  } else if (pattern === 'grit') {
+    for (let i = 0; i < 420; i += 1) {
+      const x = pad + seeded(i * 3.1) * (w - pad * 2);
+      const y = pad + seeded(i * 7.7) * (h - pad * 2);
+      const s = 0.8 + seeded(i * 2.2) * 2.2;
+      ctx.fillStyle =
+        seeded(i) > 0.5 ? 'rgba(255,230,190,0.07)' : 'rgba(40,20,8,0.1)';
+      ctx.fillRect(x, y, s, s);
+    }
+  } else if (pattern === 'lava') {
+    ctx.strokeStyle = 'rgba(255,90,40,0.18)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 9; i += 1) {
+      ctx.beginPath();
+      let x = pad + seeded(i * 11) * (w - pad * 2);
+      let y = pad + seeded(i * 17) * (h - pad * 2);
+      ctx.moveTo(x, y);
+      for (let j = 0; j < 5; j += 1) {
+        x += (seeded(i * 40 + j) - 0.5) * 90;
+        y += (seeded(i * 55 + j) - 0.35) * 70;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 30; i += 1) {
+      const x = pad + seeded(200 + i) * (w - pad * 2);
+      const y = pad + seeded(300 + i) * (h - pad * 2);
+      const r = 4 + seeded(400 + i) * 10;
+      const ember = ctx.createRadialGradient(x, y, 0, x, y, r);
+      ember.addColorStop(0, 'rgba(255,120,40,0.18)');
+      ember.addColorStop(1, 'rgba(255,80,20,0)');
+      ctx.fillStyle = ember;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (pattern === 'grid') {
+    ctx.strokeStyle = 'rgba(80,255,200,0.08)';
+    ctx.lineWidth = 1;
+    for (let x = pad; x < w - pad; x += 28) {
+      ctx.beginPath();
+      ctx.moveTo(x, pad);
+      ctx.lineTo(x, h - pad);
+      ctx.stroke();
+    }
+    for (let y = pad; y < h - pad; y += 28) {
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      ctx.lineTo(w - pad, y);
+      ctx.stroke();
+    }
+  } else if (pattern === 'weave') {
+    for (let i = 0; i < 18; i += 1) {
+      const y = pad + ((h - pad * 2) / 18) * i;
+      ctx.strokeStyle =
+        i % 2 === 0 ? 'rgba(120,255,230,0.07)' : 'rgba(40,120,180,0.08)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(pad, y);
+      for (let x = pad; x <= w - pad; x += 24) {
+        ctx.lineTo(x, y + Math.sin(x * 0.04 + i) * 4);
+      }
+      ctx.stroke();
     }
   }
 
+  // Soft center vignette
+  const vignette = ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, w * 0.62);
+  vignette.addColorStop(0, 'rgba(255,255,255,0.03)');
+  vignette.addColorStop(0.55, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(pad, pad, w - pad * 2, h - pad * 2);
+}
+
+function drawMarkings(ctx, w, h, stadium) {
   const pad = FIELD.padding;
-  ctx.strokeStyle = stadium.line;
+  const line = stadium.line;
+
+  ctx.strokeStyle = line;
+  ctx.fillStyle = line;
   ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+
+  // Touchline
   ctx.strokeRect(pad, pad, w - pad * 2, h - pad * 2);
 
+  // Halfway
   ctx.beginPath();
   ctx.moveTo(w / 2, pad);
   ctx.lineTo(w / 2, h - pad);
   ctx.stroke();
 
+  // Center circle + spot
   ctx.beginPath();
   ctx.arc(w / 2, h / 2, 78, 0, Math.PI * 2);
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(w / 2, h / 2, 5, 0, Math.PI * 2);
-  ctx.fillStyle = stadium.line;
   ctx.fill();
+
+  // Center circle soft fill
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, 78, 0, Math.PI * 2);
+  ctx.fillStyle = stadium.accent || 'rgba(255,255,255,0.05)';
+  ctx.fill();
+  ctx.fillStyle = line;
 
   const boxW = 120;
   const boxH = 250;
+  const sixW = 55;
+  const sixH = 140;
+  const penR = 55;
+
+  // Penalty areas
   ctx.strokeRect(pad, (h - boxH) / 2, boxW, boxH);
   ctx.strokeRect(w - pad - boxW, (h - boxH) / 2, boxW, boxH);
 
-  const sixW = 55;
-  const sixH = 140;
+  // Six-yard boxes
   ctx.strokeRect(pad, (h - sixH) / 2, sixW, sixH);
   ctx.strokeRect(w - pad - sixW, (h - sixH) / 2, sixW, sixH);
 
+  // Penalty spots
+  ctx.beginPath();
+  ctx.arc(pad + 88, h / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(w - pad - 88, h / 2, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Penalty arcs
+  ctx.beginPath();
+  ctx.arc(pad + 88, h / 2, penR, -Math.PI * 0.42, Math.PI * 0.42);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(w - pad - 88, h / 2, penR, Math.PI * 0.58, Math.PI * 1.42);
+  ctx.stroke();
+
+  // Corner arcs
+  const cornerR = 14;
+  const corners = [
+    [pad, pad, 0, Math.PI / 2],
+    [w - pad, pad, Math.PI / 2, Math.PI],
+    [pad, h - pad, -Math.PI / 2, 0],
+    [w - pad, h - pad, Math.PI, Math.PI * 1.5],
+  ];
+  for (const [cx, cy, a0, a1] of corners) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, cornerR, a0, a1);
+    ctx.stroke();
+  }
+
+  // Corner flags / pegs
+  ctx.fillStyle = stadium.accent || 'rgba(255,255,255,0.2)';
+  for (const [cx, cy] of [
+    [pad, pad],
+    [w - pad, pad],
+    [pad, h - pad],
+    [w - pad, h - pad],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGoals(ctx, w, h, stadium) {
+  const pad = FIELD.padding;
   const goalH = FIELD.goalHeight;
   const goalTop = (h - goalH) / 2;
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.fillRect(4, goalTop, pad - 4, goalH);
-  ctx.fillRect(w - pad, goalTop, pad - 4, goalH);
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-  ctx.lineWidth = 3.5;
-  ctx.strokeRect(4, goalTop, pad - 4, goalH);
-  ctx.strokeRect(w - pad, goalTop, pad - 4, goalH);
+  const mouth = pad - 4;
+
+  // Goal mouths
+  for (const x of [4, w - pad]) {
+    const gx = x === 4 ? 4 : w - pad;
+    const net = ctx.createLinearGradient(gx, 0, gx + mouth, 0);
+    if (x === 4) {
+      net.addColorStop(0, 'rgba(0,0,0,0.45)');
+      net.addColorStop(1, 'rgba(0,0,0,0.18)');
+    } else {
+      net.addColorStop(0, 'rgba(0,0,0,0.18)');
+      net.addColorStop(1, 'rgba(0,0,0,0.45)');
+    }
+    ctx.fillStyle = net;
+    ctx.fillRect(gx, goalTop, mouth, goalH);
+
+    // Net mesh
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 6; i += 1) {
+      const ny = goalTop + (goalH / 6) * i;
+      ctx.beginPath();
+      ctx.moveTo(gx, ny);
+      ctx.lineTo(gx + mouth, ny);
+      ctx.stroke();
+    }
+    for (let i = 1; i < 4; i += 1) {
+      const nx = gx + (mouth / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(nx, goalTop);
+      ctx.lineTo(nx, goalTop + goalH);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = stadium.line;
+    ctx.lineWidth = 3.5;
+    ctx.strokeRect(gx, goalTop, mouth, goalH);
+  }
+
+  // Crossbar shine
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(4, goalTop);
+  ctx.lineTo(pad, goalTop);
+  ctx.moveTo(w - pad, goalTop);
+  ctx.lineTo(w - 4, goalTop);
+  ctx.stroke();
+}
+
+function drawAtmosphere(ctx, w, h, stadium) {
+  if (stadium.glow) {
+    const aura = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, w * 0.55);
+    aura.addColorStop(0, stadium.glow);
+    aura.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  if (stadium.spot) {
+    const spots = [
+      [w * 0.22, h * 0.2],
+      [w * 0.78, h * 0.2],
+      [w * 0.22, h * 0.8],
+      [w * 0.78, h * 0.8],
+      [w * 0.5, h * 0.5],
+    ];
+    for (const [sx, sy] of spots) {
+      const beam = ctx.createRadialGradient(sx, sy, 8, sx, sy, 120);
+      beam.addColorStop(0, stadium.spot);
+      beam.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = beam;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 120, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Outer rim shadow into apron
+  const rim = ctx.createLinearGradient(0, 0, 0, h);
+  rim.addColorStop(0, 'rgba(0,0,0,0.25)');
+  rim.addColorStop(0.08, 'rgba(0,0,0,0)');
+  rim.addColorStop(0.92, 'rgba(0,0,0,0)');
+  rim.addColorStop(1, 'rgba(0,0,0,0.28)');
+  ctx.fillStyle = rim;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawPitch(ctx, w, h, stadiumId) {
+  const stadium = STADIUMS[stadiumId] || STADIUMS.standard;
+  drawApron(ctx, w, h, stadium);
+  drawSurface(ctx, w, h, stadium);
+  drawMarkings(ctx, w, h, stadium);
+  drawGoals(ctx, w, h, stadium);
+  drawAtmosphere(ctx, w, h, stadium);
 }
 
 function clipDisc(ctx, x, y, r) {
@@ -148,8 +413,203 @@ function drawFlagFace(ctx, p) {
   ctx.restore();
 }
 
-function drawDisc(ctx, p, { selected, locked, canControl, pulse }) {
+function drawSkinAura(ctx, p, skin, t) {
+  const { x, y, r } = p;
+  const motion = skin.motion || 'breathe';
+  const phase = t * 0.001;
+  const idHash = (p.index || 0) * 1.7;
+
+  if (motion === 'breathe') {
+    const a = 0.12 + Math.sin(phase * 2.2 + idHash) * 0.06;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 4 + Math.sin(phase * 2.2 + idHash) * 1.5, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    return;
+  }
+
+  if (motion === 'shine') {
+    const pulse = 0.2 + Math.sin(phase * 3 + idHash) * 0.1;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(210,230,245,${pulse})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    return;
+  }
+
+  if (motion === 'ember') {
+    const flicker = 0.35 + Math.sin(phase * 8 + idHash) * 0.15 + Math.sin(phase * 13) * 0.08;
+    const glow = ctx.createRadialGradient(x, y, r * 0.4, x, y, r + 14);
+    glow.addColorStop(0, `rgba(255,120,40,${0.05 + flicker * 0.12})`);
+    glow.addColorStop(0.55, `rgba(255,80,20,${0.12 + flicker * 0.2})`);
+    glow.addColorStop(1, 'rgba(255,40,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = 0; i < 5; i += 1) {
+      const ang = phase * 2.4 + idHash + i * ((Math.PI * 2) / 5);
+      const rise = ((phase * 40 + i * 17 + idHash * 10) % 18);
+      const px = x + Math.cos(ang) * (r * 0.35 + rise * 0.35);
+      const py = y - rise * 0.9 + Math.sin(ang * 2) * 2;
+      const alpha = Math.max(0, 0.7 - rise / 22);
+      ctx.beginPath();
+      ctx.arc(px, py, 1.6 + (1 - rise / 18), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,${140 + i * 15},60,${alpha})`;
+      ctx.fill();
+    }
+    return;
+  }
+
+  if (motion === 'gleam') {
+    const spin = phase * 1.6 + idHash;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 6 + Math.sin(phase * 3) * 1.2, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(224,180,74,${0.25 + Math.sin(phase * 2) * 0.12})`;
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    for (let i = 0; i < 3; i += 1) {
+      const a0 = spin + i * ((Math.PI * 2) / 3);
+      ctx.beginPath();
+      ctx.arc(x, y, r + 3, a0, a0 + 0.55);
+      ctx.strokeStyle = `rgba(255,230,150,${0.45 + Math.sin(phase * 4 + i) * 0.25})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    return;
+  }
+
+  if (motion === 'orbit') {
+    const aura = ctx.createRadialGradient(x, y, r * 0.2, x, y, r + 16);
+    aura.addColorStop(0, `rgba(140,100,255,${0.08 + Math.sin(phase * 2) * 0.04})`);
+    aura.addColorStop(0.6, `rgba(90,60,220,${0.14 + Math.sin(phase * 1.5 + idHash) * 0.06})`);
+    aura.addColorStop(1, 'rgba(60,20,180,0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(x, y, r + 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = 0; i < 6; i += 1) {
+      const ang = phase * (1.2 + i * 0.15) + i * ((Math.PI * 2) / 6) + idHash;
+      const rad = r + 7 + Math.sin(phase * 3 + i) * 2.5;
+      const px = x + Math.cos(ang) * rad;
+      const py = y + Math.sin(ang) * rad;
+      const twinkle = 0.4 + Math.sin(phase * 6 + i * 2) * 0.4;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.2 + twinkle * 0.8, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(220,200,255,${twinkle})`;
+      ctx.fill();
+    }
+  }
+}
+
+function drawSkinOverlay(ctx, p, skin, t) {
+  const { x, y, r } = p;
+  const motion = skin.motion || 'breathe';
+  const phase = t * 0.001;
+  const idHash = (p.index || 0) * 1.7;
+
+  if (skin.tint) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = skin.tint;
+    ctx.fill();
+  }
+
+  ctx.save();
+  clipDisc(ctx, x, y, r);
+
+  if (motion === 'shine') {
+    const sweep = ((phase * 0.55 + idHash * 0.1) % 1.4) - 0.2;
+    const gx = x - r + sweep * r * 2.4;
+    const band = ctx.createLinearGradient(gx - 8, y - r, gx + 14, y + r);
+    band.addColorStop(0, 'rgba(255,255,255,0)');
+    band.addColorStop(0.45, 'rgba(255,255,255,0.55)');
+    band.addColorStop(0.55, 'rgba(200,220,240,0.35)');
+    band.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = band;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  } else if (motion === 'ember') {
+    const flicker = 0.5 + Math.sin(phase * 9 + idHash) * 0.35;
+    const heat = ctx.createRadialGradient(
+      x + Math.sin(phase * 4) * 3,
+      y + 4,
+      1,
+      x,
+      y,
+      r,
+    );
+    heat.addColorStop(0, `rgba(255,200,80,${0.2 * flicker})`);
+    heat.addColorStop(0.45, `rgba(255,90,30,${0.18 * flicker})`);
+    heat.addColorStop(1, 'rgba(120,20,0,0)');
+    ctx.fillStyle = heat;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  } else if (motion === 'gleam') {
+    const spin = phase * 1.8 + idHash;
+    for (let i = 0; i < 2; i += 1) {
+      const ang = spin + i * Math.PI;
+      const gx = x + Math.cos(ang) * r * 0.35;
+      const gy = y + Math.sin(ang) * r * 0.35;
+      const spark = ctx.createRadialGradient(gx, gy, 0, gx, gy, r * 0.7);
+      spark.addColorStop(0, 'rgba(255,245,180,0.55)');
+      spark.addColorStop(0.4, 'rgba(224,180,74,0.2)');
+      spark.addColorStop(1, 'rgba(224,180,74,0)');
+      ctx.fillStyle = spark;
+      ctx.beginPath();
+      ctx.arc(gx, gy, r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (let i = 0; i < 4; i += 1) {
+      const blink = Math.sin(phase * 7 + i * 1.3 + idHash);
+      if (blink < 0.2) continue;
+      const ang = idHash + i * 1.7 + phase * 0.4;
+      const px = x + Math.cos(ang) * r * (0.25 + (i % 3) * 0.2);
+      const py = y + Math.sin(ang) * r * (0.25 + (i % 2) * 0.25);
+      ctx.fillStyle = `rgba(255,250,210,${0.35 + blink * 0.4})`;
+      ctx.fillRect(px - 1, py - 1, 2, 2);
+    }
+  } else if (motion === 'orbit') {
+    const swirl = phase * 1.3 + idHash;
+    for (let i = 0; i < 3; i += 1) {
+      const ang = swirl + i * ((Math.PI * 2) / 3);
+      const nx = x + Math.cos(ang) * r * 0.35;
+      const ny = y + Math.sin(ang) * r * 0.35;
+      const nebula = ctx.createRadialGradient(nx, ny, 0, nx, ny, r * 0.85);
+      nebula.addColorStop(0, `rgba(180,140,255,${0.22})`);
+      nebula.addColorStop(0.5, `rgba(80,60,200,${0.12})`);
+      nebula.addColorStop(1, 'rgba(40,20,120,0)');
+      ctx.fillStyle = nebula;
+      ctx.beginPath();
+      ctx.arc(nx, ny, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (let i = 0; i < 8; i += 1) {
+      const tw = 0.3 + Math.sin(phase * 5 + i * 2.1) * 0.7;
+      if (tw < 0.35) continue;
+      const ang = i * 0.9 + phase * 0.7;
+      const px = x + Math.cos(ang) * r * (0.15 + (i % 4) * 0.18);
+      const py = y + Math.sin(ang * 1.3) * r * (0.15 + (i % 3) * 0.2);
+      ctx.fillStyle = `rgba(255,255,255,${tw * 0.85})`;
+      ctx.beginPath();
+      ctx.arc(px, py, 0.9 + tw * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawDisc(ctx, p, { selected, locked, canControl, pulse, time }) {
   const r = p.r;
+  const skin = getDiscMeta(p.discSkinId);
+  const t = time || 0;
+  const humanSkin = p.team === 'human';
+
+  if (humanSkin) drawSkinAura(ctx, p, skin, t);
 
   if (canControl && pulse) {
     ctx.beginPath();
@@ -174,11 +634,24 @@ function drawDisc(ctx, p, { selected, locked, canControl, pulse }) {
 
   drawFlagFace(ctx, p);
 
+  if (humanSkin) drawSkinOverlay(ctx, p, skin, t);
+
+  const rimPulse =
+    humanSkin && skin.motion !== 'breathe'
+      ? 0.75 + Math.sin(t * 0.003 + (p.index || 0)) * 0.25
+      : 1;
+
   ctx.beginPath();
   ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
   ctx.lineWidth = canControl ? 2.5 : 1.5;
-  ctx.strokeStyle = canControl ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.35)';
+  ctx.globalAlpha = rimPulse;
+  ctx.strokeStyle = canControl
+    ? skin.rim || 'rgba(255,255,255,0.7)'
+    : p.team === 'human'
+      ? skin.rim || 'rgba(255,255,255,0.55)'
+      : 'rgba(0,0,0,0.35)';
   ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 function drawBall(ctx, ball) {
@@ -263,7 +736,7 @@ function drawOrbitGuide(ctx, orbit) {
   ctx.fill();
 }
 
-function paint(ctx, state, drag, interactive, pulse) {
+function paint(ctx, state, drag, interactive, pulse, time) {
   drawPitch(ctx, FIELD.width, FIELD.height, state.stadiumId);
   if (state.phase === 'orbit' && state.orbit) {
     drawOrbitGuide(ctx, state.orbit);
@@ -280,6 +753,7 @@ function paint(ctx, state, drag, interactive, pulse) {
       locked: state.lockedPlayerId === p.id || state.orbit?.playerId === p.id,
       canControl,
       pulse: canControl ? pulse : 0,
+      time,
     });
   }
   drawBall(ctx, state.ball);
@@ -300,6 +774,7 @@ const Pitch = forwardRef(function Pitch(
   const stateRef = useRef(state);
   const interactiveRef = useRef(interactive);
   const pulseRef = useRef(0);
+  const timeRef = useRef(0);
   const pulseRaf = useRef(0);
 
   stateRef.current = state;
@@ -322,7 +797,14 @@ const Pitch = forwardRef(function Pitch(
   function redraw(nextState = stateRef.current, nextDrag = dragRef.current) {
     const ctx = ensureCtx();
     if (!ctx) return;
-    paint(ctx, nextState, nextDrag, interactiveRef.current, pulseRef.current);
+    paint(
+      ctx,
+      nextState,
+      nextDrag,
+      interactiveRef.current,
+      pulseRef.current,
+      timeRef.current,
+    );
   }
 
   useImperativeHandle(ref, () => ({
@@ -336,16 +818,18 @@ const Pitch = forwardRef(function Pitch(
     redraw(state, drag);
   }, [state, drag, interactive]);
 
+  // Continuous skin motion + control pulse
   useEffect(() => {
-    if (!(interactive && state.phase === 'aim' && state.turn === 'human')) {
-      cancelAnimationFrame(pulseRaf.current);
-      return undefined;
-    }
     let alive = true;
     const tick = (t) => {
       if (!alive) return;
+      timeRef.current = t;
       pulseRef.current = (Math.sin(t / 320) + 1) / 2;
-      if (!dragRef.current) redraw();
+      // Skip extra draw while physics loop already paints every frame
+      const phase = stateRef.current?.phase;
+      if (phase !== 'resolve' && phase !== 'orbit') {
+        redraw();
+      }
       pulseRaf.current = requestAnimationFrame(tick);
     };
     pulseRaf.current = requestAnimationFrame(tick);
@@ -353,7 +837,7 @@ const Pitch = forwardRef(function Pitch(
       alive = false;
       cancelAnimationFrame(pulseRaf.current);
     };
-  }, [interactive, state.phase, state.turn]);
+  }, []);
 
   function toFieldPoint(e) {
     const canvas = canvasRef.current;

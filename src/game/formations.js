@@ -1,3 +1,5 @@
+import { stadiumsMap } from '../progress/catalog.js';
+
 /**
  * Each formation: 6 discs as { x, y } in 0..1 of the team's half.
  * x: 0 = own goal line, 1 = halfway. y: 0 = top touchline, 1 = bottom.
@@ -73,20 +75,4 @@ export const FORMATIONS = {
 
 export const FORMATION_IDS = Object.keys(FORMATIONS);
 
-export const STADIUMS = {
-  standard: {
-    id: 'standard',
-    grass: ['#1f7a45', '#1a6b3c', '#176236'],
-    line: 'rgba(255,255,255,0.7)',
-  },
-  night: {
-    id: 'night',
-    grass: ['#0f3d2a', '#0c3323', '#0a2c1e'],
-    line: 'rgba(220,240,255,0.55)',
-  },
-  clay: {
-    id: 'clay',
-    grass: ['#8a5a32', '#7a4f2c', '#6e4627'],
-    line: 'rgba(255,236,210,0.7)',
-  },
-};
+export const STADIUMS = stadiumsMap();

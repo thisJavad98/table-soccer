@@ -19,16 +19,20 @@ import {
 } from '../game/engine.js';
 import { getTeam } from '../game/teams.js';
 import { useI18n } from '../i18n/index.jsx';
+import { LOSS_POINTS, WIN_POINTS } from '../progress/catalog.js';
+import { recordMatchResult } from '../progress/store.js';
 
 export default function Match({ session, onExit }) {
   const { t, lang, f } = useI18n();
   const [state, setState] = useState(() => createMatch(session));
   const [power, setPower] = useState(0);
+  const [reward, setReward] = useState(null);
   const liveRef = useRef(null);
   const pitchRef = useRef(null);
   const botTimer = useRef(0);
   const goalTimer = useRef(0);
   const loopRaf = useRef(0);
+  const scoredRef = useRef(false);
 
   const humanTeam = getTeam(session.humanTeamId);
   const botTeam = getTeam(session.botTeamId);
@@ -143,12 +147,26 @@ export default function Match({ session, onExit }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onExit]);
 
+  useEffect(() => {
+    if (state.phase !== 'over' || scoredRef.current) return;
+    scoredRef.current = true;
+    const won = state.winner === 'human';
+    const updated = recordMatchResult(session.playerName, won);
+    setReward({
+      won,
+      gained: won ? WIN_POINTS : LOSS_POINTS,
+      points: updated.points,
+    });
+  }, [state.phase, state.winner, session.playerName]);
+
   function handleKick(playerId, aim) {
     setPower(0);
     setState((prev) => applyKick(prev, playerId, aim));
   }
 
   function rematch() {
+    scoredRef.current = false;
+    setReward(null);
     setState(createMatch(session));
   }
 
@@ -295,6 +313,12 @@ export default function Match({ session, onExit }) {
             <p className="lead">
               {f('finalScore', { a: state.score.human, b: state.score.bot })}
             </p>
+            {reward && (
+              <p className="reward-line">
+                {f('pointsGained', { n: reward.gained })}
+                <span> · {f('pointsTotal', { n: reward.points })}</span>
+              </p>
+            )}
             <div className="overlay__actions">
               <button type="button" className="btn btn--primary" onClick={rematch}>
                 {t.playAgain}

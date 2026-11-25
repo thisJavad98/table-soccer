@@ -29,7 +29,7 @@ export function dist(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function placeTeam(side, formationId, teamId) {
+function placeTeam(side, formationId, teamId, discSkinId) {
   const formation = FORMATIONS[formationId] || FORMATIONS.standard;
   const left = FIELD.padding + 48;
   const right = FIELD.width - FIELD.padding - 48;
@@ -59,6 +59,7 @@ function placeTeam(side, formationId, teamId) {
       accent: team.accent,
       style: team.style,
       bands: team.bands,
+      discSkinId: side === 'human' ? discSkinId || 'classic' : 'classic',
     };
   });
 }
@@ -80,6 +81,7 @@ export function createMatch(config) {
     attackFormation,
     defenseFormation,
     stadiumId,
+    discSkinId = 'classic',
   } = config;
 
   const kickoffTeam = 'human';
@@ -97,8 +99,8 @@ export function createMatch(config) {
   );
 
   const players = [
-    ...placeTeam('bot', botFormationId, botTeamId),
-    ...placeTeam('human', humanFormationId, humanTeamId),
+    ...placeTeam('bot', botFormationId, botTeamId, 'classic'),
+    ...placeTeam('human', humanFormationId, humanTeamId, discSkinId),
   ];
 
   return {
