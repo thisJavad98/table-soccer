@@ -1,13 +1,7 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.jsx';
-import { I18nProvider } from './i18n/index.jsx';
-import './index.css';
+import { mount } from './embed.jsx';
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <I18nProvider>
-      <App />
-    </I18nProvider>
-  </StrictMode>,
-);
+// Browser entry — mount only when a real document + #root exist
+if (typeof document !== 'undefined') {
+  const el = document.getElementById('root');
+  if (el) mount(el);
+}

@@ -15,6 +15,9 @@ import {
   unlockDisc,
   unlockStadium,
 } from '../progress/store.js';
+import banner500 from '../assets/photo-f55265356-500.jpg';
+import banner960 from '../assets/photo-f55265356-960.jpg';
+import banner1280 from '../assets/photo-f55265356-1280.jpg';
 
 export default function Welcome({ onStart, onLeaderboard }) {
   const { t, lang, f } = useI18n();
@@ -139,11 +142,11 @@ export default function Welcome({ onStart, onLeaderboard }) {
       <div className="welcome__visual" aria-hidden="true">
         <img
           className="welcome__photo"
-          src="/img/photo-f55265356.jpg"
-          srcSet="/img/photo-f55265356-500.jpg 500w, /img/photo-f55265356-960.jpg 960w, /img/photo-f55265356-1280.jpg 1280w, /img/photo-f55265356.jpg 1920w"
+          src={banner960}
+          srcSet={`${banner500} 500w, ${banner960} 960w, ${banner1280} 1280w`}
           sizes="(min-width: 960px) 48vw, 100vw"
-          width="1920"
-          height="1280"
+          width="1280"
+          height="853"
           alt=""
           fetchPriority="high"
           decoding="async"
