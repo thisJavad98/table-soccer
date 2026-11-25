@@ -1,4 +1,4 @@
-# Table Soccer / تیبل ساکر
+# Table Soccer / فوتبال دستی
 
 Plato-style turn-based table soccer in React. Play vs bot — no backend.
 
