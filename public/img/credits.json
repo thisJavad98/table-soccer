@@ -1,0 +1,51 @@
+{
+ "note": "Credits for the photographs in this folder: photos.mjs credits prints the footer block for the ones the pages use.",
+ "photos": [
+  {
+   "file": "photo-f55265356.jpg",
+   "files": [
+    "photo-f55265356-500.jpg",
+    "photo-f55265356-960.jpg",
+    "photo-f55265356-1280.jpg",
+    "photo-f55265356.jpg"
+   ],
+   "id": "f55265356",
+   "alt": "Foosball table, Square Raoul Nordling, Paris 21 January 2017",
+   "by": "Guilhem Vellut from Paris, France",
+   "licence": "CC BY 2.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Foosball_table,_Square_Raoul_Nordling,_Paris_21_January_2017.jpg",
+   "source": "Wikimedia Commons"
+  },
+  {
+   "file": "photo-f12189166.jpg",
+   "files": [
+    "photo-f12189166-500.jpg",
+    "photo-f12189166-960.jpg",
+    "photo-f12189166.jpg"
+   ],
+   "id": "f12189166",
+   "alt": "Detail of players of foosball table by FAS company in Brno, Brno-City District",
+   "by": "Jiří Sedláček - Frettie",
+   "licence": "CC BY-SA 3.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Detail_of_players_of_foosball_table_by_FAS_company_in_Brno,_Brno-City_District.jpg",
+   "source": "Wikimedia Commons"
+  },
+  {
+   "file": "photo-f25648447.jpg",
+   "files": [
+    "photo-f25648447-500.jpg",
+    "photo-f25648447-960.jpg",
+    "photo-f25648447.jpg"
+   ],
+   "id": "f25648447",
+   "alt": "Foosball Table (8388519457)",
+   "by": "Alex Proimos from Sydney, Australia",
+   "licence": "CC BY 2.0",
+   "licenceUrl": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Foosball_Table_(8388519457).jpg",
+   "source": "Wikimedia Commons"
+  }
+ ]
+}
