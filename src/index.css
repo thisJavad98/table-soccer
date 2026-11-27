@@ -254,7 +254,7 @@ html[dir='rtl'] .eyebrow {
 .setup-form {
   display: grid;
   gap: 0.85rem;
-  width: min(460px, 100%);
+  width: 100%;
 }
 
 .setup-row {
