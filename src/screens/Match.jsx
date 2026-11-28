@@ -3,13 +3,8 @@ import GoalCelebration from '../components/GoalCelebration.jsx';
 import LangSwitch from '../components/LangSwitch.jsx';
 import Logo from '../components/Logo.jsx';
 import Pitch from '../components/Pitch.jsx';
-import {
-  BOT_THINK_MS,
-  GOAL_PAUSE_MS,
-  GOALS_TO_WIN,
-  PHYS_DT,
-} from '../game/constants.js';
-import { decideBotKick } from '../game/bot.js';
+import { GOAL_PAUSE_MS, GOALS_TO_WIN, PHYS_DT } from '../game/constants.js';
+import { botThinkMs, decideBotKick } from '../game/bot.js';
 import {
   afterGoalRestart,
   applyKick,
@@ -22,7 +17,7 @@ import { useI18n } from '../i18n/index.jsx';
 import { LOSS_POINTS, WIN_POINTS } from '../progress/catalog.js';
 import { recordMatchResult } from '../progress/store.js';
 
-export default function Match({ session, onExit }) {
+export default function Match({ session, onExit, onRematch }) {
   const { t, lang, f } = useI18n();
   const [state, setState] = useState(() => createMatch(session));
   const [power, setPower] = useState(0);
@@ -33,9 +28,12 @@ export default function Match({ session, onExit }) {
   const goalTimer = useRef(0);
   const loopRaf = useRef(0);
   const scoredRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const humanTeam = getTeam(session.humanTeamId);
   const botTeam = getTeam(session.botTeamId);
+  const difficulty = session.difficulty || 'medium';
 
   const resolveKey =
     state.phase === 'resolve'
@@ -124,12 +122,12 @@ export default function Match({ session, onExit }) {
     botTimer.current = window.setTimeout(() => {
       setState((prev) => {
         if (prev.phase !== 'aim' || prev.turn !== 'bot') return prev;
-        const decision = decideBotKick(prev);
+        const decision = decideBotKick(prev, difficulty);
         return applyKick(prev, decision.playerId, decision.aim);
       });
-    }, BOT_THINK_MS);
+    }, botThinkMs(difficulty));
     return () => clearTimeout(botTimer.current);
-  }, [state.phase, state.turn, state.passChain, state.lockedPlayerId]);
+  }, [state.phase, state.turn, state.passChain, state.lockedPlayerId, difficulty]);
 
   useEffect(() => {
     if (state.phase !== 'goal') return undefined;
@@ -165,6 +163,10 @@ export default function Match({ session, onExit }) {
   }
 
   function rematch() {
+    if (onRematch) {
+      onRematch();
+      return;
+    }
     scoredRef.current = false;
     setReward(null);
     setState(createMatch(session));
@@ -244,10 +246,26 @@ export default function Match({ session, onExit }) {
             <li>{t.desktopTip3}</li>
           </ol>
           <p className="rail-esc">{t.desktopEsc}</p>
+          <p className="rail-diff">
+            {t.difficulty}: {t.difficultyNames[difficulty]}
+          </p>
         </aside>
 
         <div className="match-stage">
-          <p className={`match-hint ${yourTurn ? 'is-you' : ''}`}>{message}</p>
+          <div className="match-stage__meta">
+            <p className={`match-hint ${yourTurn ? 'is-you' : ''}`}>{message}</p>
+            <div
+              className={`turn-pill turn-pill--mobile ${yourTurn ? 'is-you' : orbiting ? 'is-you' : state.turn === 'bot' ? 'is-bot' : ''}`}
+            >
+              {orbiting
+                ? t.orbiting
+                : yourTurn
+                  ? t.yourTurnShort
+                  : state.turn === 'bot'
+                    ? t.botTurnShort
+                    : t.ballInPlay}
+            </div>
+          </div>
           <Pitch
             ref={pitchRef}
             state={state}

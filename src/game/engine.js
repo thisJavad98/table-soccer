@@ -82,9 +82,14 @@ export function createMatch(config) {
     defenseFormation,
     stadiumId,
     discSkinId = 'classic',
+    kickoffTeam: kickoffFromConfig = 'human',
+    difficulty = 'medium',
   } = config;
 
-  const kickoffTeam = 'human';
+  const kickoffTeam =
+    kickoffFromConfig === 'bot' || kickoffFromConfig === 'human'
+      ? kickoffFromConfig
+      : 'human';
   const humanFormationId = formationFor(
     'human',
     kickoffTeam,
@@ -105,6 +110,7 @@ export function createMatch(config) {
 
   return {
     ...config,
+    difficulty,
     players,
     ball: {
       x: FIELD.width / 2 + (kickoffTeam === 'human' ? 14 : -14),
@@ -127,7 +133,7 @@ export function createMatch(config) {
     touchedTeammateId: null,
     ballWasHit: false,
     orbit: null,
-    messageKey: 'kickoffYours',
+    messageKey: kickoffTeam === 'human' ? 'kickoffYours' : 'kickoffBot',
     messageVars: {},
     stadiumId: stadiumId || 'standard',
     attackFormation,

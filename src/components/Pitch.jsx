@@ -39,59 +39,64 @@ function drawApron(ctx, w, h, stadium) {
 function drawSurface(ctx, w, h, stadium) {
   const [c0, c1, c2] = stadium.grass;
   const pad = FIELD.padding;
+  const innerW = w - pad * 2;
+  const innerH = h - pad * 2;
   const g = ctx.createLinearGradient(0, pad, 0, h - pad);
   g.addColorStop(0, c0);
   g.addColorStop(0.5, c1);
   g.addColorStop(1, c2);
   ctx.fillStyle = g;
-  ctx.fillRect(pad - 2, pad - 2, w - pad * 2 + 4, h - pad * 2 + 4);
+  ctx.fillRect(pad - 2, pad - 2, innerW + 4, innerH + 4);
+
+  // Keep every stadium pattern inside the grass — no apron overflow
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad, pad, innerW, innerH);
+  ctx.clip();
 
   const pattern = stadium.pattern || 'mow';
   if (pattern === 'mow') {
-    const stripe = (w - pad * 2) / 14;
+    const stripe = innerW / 14;
     for (let i = 0; i < 14; i += 1) {
-      if (i % 2 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.045)';
-        ctx.fillRect(pad + i * stripe, pad, stripe, h - pad * 2);
-      } else {
-        ctx.fillStyle = 'rgba(0,0,0,0.045)';
-        ctx.fillRect(pad + i * stripe, pad, stripe, h - pad * 2);
-      }
+      ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.045)' : 'rgba(0,0,0,0.045)';
+      ctx.fillRect(pad + i * stripe, pad, stripe, innerH);
     }
   } else if (pattern === 'frost') {
-    const stripe = h / 16;
+    const stripe = innerH / 16;
     for (let i = 0; i < 16; i += 1) {
       ctx.fillStyle = i % 2 === 0 ? 'rgba(180,210,255,0.05)' : 'rgba(0,0,0,0.05)';
-      ctx.fillRect(pad, pad + i * stripe, w - pad * 2, stripe);
+      ctx.fillRect(pad, pad + i * stripe, innerW, stripe);
     }
   } else if (pattern === 'grit') {
     for (let i = 0; i < 420; i += 1) {
-      const x = pad + seeded(i * 3.1) * (w - pad * 2);
-      const y = pad + seeded(i * 7.7) * (h - pad * 2);
       const s = 0.8 + seeded(i * 2.2) * 2.2;
+      const x = pad + seeded(i * 3.1) * Math.max(0, innerW - s);
+      const y = pad + seeded(i * 7.7) * Math.max(0, innerH - s);
       ctx.fillStyle =
         seeded(i) > 0.5 ? 'rgba(255,230,190,0.07)' : 'rgba(40,20,8,0.1)';
       ctx.fillRect(x, y, s, s);
     }
   } else if (pattern === 'lava') {
+    const maxX = w - pad;
+    const maxY = h - pad;
     ctx.strokeStyle = 'rgba(255,90,40,0.18)';
     ctx.lineWidth = 2;
     for (let i = 0; i < 9; i += 1) {
       ctx.beginPath();
-      let x = pad + seeded(i * 11) * (w - pad * 2);
-      let y = pad + seeded(i * 17) * (h - pad * 2);
+      let x = pad + seeded(i * 11) * innerW;
+      let y = pad + seeded(i * 17) * innerH;
       ctx.moveTo(x, y);
       for (let j = 0; j < 5; j += 1) {
-        x += (seeded(i * 40 + j) - 0.5) * 90;
-        y += (seeded(i * 55 + j) - 0.35) * 70;
+        x = clamp(x + (seeded(i * 40 + j) - 0.5) * 90, pad, maxX);
+        y = clamp(y + (seeded(i * 55 + j) - 0.35) * 70, pad, maxY);
         ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
     for (let i = 0; i < 30; i += 1) {
-      const x = pad + seeded(200 + i) * (w - pad * 2);
-      const y = pad + seeded(300 + i) * (h - pad * 2);
       const r = 4 + seeded(400 + i) * 10;
+      const x = pad + r + seeded(200 + i) * Math.max(0, innerW - r * 2);
+      const y = pad + r + seeded(300 + i) * Math.max(0, innerH - r * 2);
       const ember = ctx.createRadialGradient(x, y, 0, x, y, r);
       ember.addColorStop(0, 'rgba(255,120,40,0.18)');
       ember.addColorStop(1, 'rgba(255,80,20,0)');
@@ -103,13 +108,13 @@ function drawSurface(ctx, w, h, stadium) {
   } else if (pattern === 'grid') {
     ctx.strokeStyle = 'rgba(80,255,200,0.08)';
     ctx.lineWidth = 1;
-    for (let x = pad; x < w - pad; x += 28) {
+    for (let x = pad; x <= w - pad; x += 28) {
       ctx.beginPath();
       ctx.moveTo(x, pad);
       ctx.lineTo(x, h - pad);
       ctx.stroke();
     }
-    for (let y = pad; y < h - pad; y += 28) {
+    for (let y = pad; y <= h - pad; y += 28) {
       ctx.beginPath();
       ctx.moveTo(pad, y);
       ctx.lineTo(w - pad, y);
@@ -117,14 +122,14 @@ function drawSurface(ctx, w, h, stadium) {
     }
   } else if (pattern === 'weave') {
     for (let i = 0; i < 18; i += 1) {
-      const y = pad + ((h - pad * 2) / 18) * i;
+      const y = pad + (innerH / 18) * i;
       ctx.strokeStyle =
         i % 2 === 0 ? 'rgba(120,255,230,0.07)' : 'rgba(40,120,180,0.08)';
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(pad, y);
       for (let x = pad; x <= w - pad; x += 24) {
-        ctx.lineTo(x, y + Math.sin(x * 0.04 + i) * 4);
+        ctx.lineTo(x, clamp(y + Math.sin(x * 0.04 + i) * 4, pad, h - pad));
       }
       ctx.stroke();
     }
@@ -136,7 +141,8 @@ function drawSurface(ctx, w, h, stadium) {
   vignette.addColorStop(0.55, 'rgba(0,0,0,0)');
   vignette.addColorStop(1, 'rgba(0,0,0,0.18)');
   ctx.fillStyle = vignette;
-  ctx.fillRect(pad, pad, w - pad * 2, h - pad * 2);
+  ctx.fillRect(pad, pad, innerW, innerH);
+  ctx.restore();
 }
 
 function drawMarkings(ctx, w, h, stadium) {
@@ -177,6 +183,11 @@ function drawMarkings(ctx, w, h, stadium) {
   const sixW = 55;
   const sixH = 140;
   const penR = 55;
+  const spotX = 88;
+  // Only the arc outside the box (D) — angle at the box edge
+  const penTheta = Math.acos(
+    Math.min(1, Math.max(-1, (boxW - spotX) / penR)),
+  );
 
   // Penalty areas
   ctx.strokeRect(pad, (h - boxH) / 2, boxW, boxH);
@@ -188,18 +199,18 @@ function drawMarkings(ctx, w, h, stadium) {
 
   // Penalty spots
   ctx.beginPath();
-  ctx.arc(pad + 88, h / 2, 3.5, 0, Math.PI * 2);
+  ctx.arc(pad + spotX, h / 2, 3.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(w - pad - 88, h / 2, 3.5, 0, Math.PI * 2);
+  ctx.arc(w - pad - spotX, h / 2, 3.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Penalty arcs
+  // Penalty arcs (outside the box only — no overlap into the area)
   ctx.beginPath();
-  ctx.arc(pad + 88, h / 2, penR, -Math.PI * 0.42, Math.PI * 0.42);
+  ctx.arc(pad + spotX, h / 2, penR, -penTheta, penTheta);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(w - pad - 88, h / 2, penR, Math.PI * 0.58, Math.PI * 1.42);
+  ctx.arc(w - pad - spotX, h / 2, penR, Math.PI - penTheta, Math.PI + penTheta);
   ctx.stroke();
 
   // Corner arcs
@@ -763,22 +774,38 @@ function paint(ctx, state, drag, interactive, pulse, time) {
   }
 }
 
+const PORTRAIT_MQ = '(max-width: 820px) and (orientation: portrait)';
+
 const Pitch = forwardRef(function Pitch(
   { state, onKick, interactive, onPowerChange },
   ref,
 ) {
   const canvasRef = useRef(null);
+  const rotateRef = useRef(null);
   const ctxRef = useRef(null);
   const [drag, setDrag] = useState(null);
+  const [portrait, setPortrait] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(PORTRAIT_MQ).matches : false,
+  );
   const dragRef = useRef(null);
   const stateRef = useRef(state);
   const interactiveRef = useRef(interactive);
+  const portraitRef = useRef(portrait);
   const pulseRef = useRef(0);
   const timeRef = useRef(0);
   const pulseRaf = useRef(0);
 
   stateRef.current = state;
   interactiveRef.current = interactive;
+  portraitRef.current = portrait;
+
+  useEffect(() => {
+    const mq = window.matchMedia(PORTRAIT_MQ);
+    const sync = () => setPortrait(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   function ensureCtx() {
     const canvas = canvasRef.current;
@@ -840,12 +867,25 @@ const Pitch = forwardRef(function Pitch(
   }, []);
 
   function toFieldPoint(e) {
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Portrait: canvas is CSS-rotated 90° CW so bot goal is top, human bottom.
+    // Map through the unrotated portrait wrapper, not the transformed AABB.
+    if (portraitRef.current && rotateRef.current) {
+      const wrap = rotateRef.current.getBoundingClientRect();
+      const px = clientX - wrap.left;
+      const py = clientY - wrap.top;
+      return {
+        x: (py / Math.max(1, wrap.height)) * FIELD.width,
+        y: (1 - px / Math.max(1, wrap.width)) * FIELD.height,
+      };
+    }
+
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const scaleX = FIELD.width / rect.width;
     const scaleY = FIELD.height / rect.height;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return {
       x: (clientX - rect.left) * scaleX,
       y: (clientY - rect.top) * scaleY,
@@ -909,21 +949,25 @@ const Pitch = forwardRef(function Pitch(
   const aiming = Boolean(drag);
 
   return (
-    <div className={`pitch-shell ${aiming ? 'is-aiming' : ''} ${interactive ? 'is-live' : ''}`}>
-      <canvas
-        ref={canvasRef}
-        className="pitch-canvas"
-        style={{ touchAction: 'none' }}
-        width={FIELD.width}
-        height={FIELD.height}
-        onMouseDown={startDrag}
-        onMouseMove={moveDrag}
-        onMouseUp={endDrag}
-        onMouseLeave={endDrag}
-        onTouchStart={startDrag}
-        onTouchMove={moveDrag}
-        onTouchEnd={endDrag}
-      />
+    <div
+      className={`pitch-shell ${aiming ? 'is-aiming' : ''} ${interactive ? 'is-live' : ''} ${portrait ? 'is-portrait' : ''}`}
+    >
+      <div className="pitch-rotate" ref={rotateRef}>
+        <canvas
+          ref={canvasRef}
+          className="pitch-canvas"
+          style={{ touchAction: 'none' }}
+          width={FIELD.width}
+          height={FIELD.height}
+          onMouseDown={startDrag}
+          onMouseMove={moveDrag}
+          onMouseUp={endDrag}
+          onMouseLeave={endDrag}
+          onTouchStart={startDrag}
+          onTouchMove={moveDrag}
+          onTouchEnd={endDrag}
+        />
+      </div>
     </div>
   );
 });

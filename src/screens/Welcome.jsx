@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import FormationPreview from "../components/FormationPreview.jsx";
 import LangSwitch from "../components/LangSwitch.jsx";
 import Logo from "../components/Logo.jsx";
+import { DIFFICULTY_IDS } from "../game/bot.js";
 import { GOALS_TO_WIN } from "../game/constants.js";
 import { FORMATION_IDS } from "../game/formations.js";
 import { BOT_TEAM_ID, TEAMS } from "../game/teams.js";
@@ -26,6 +27,7 @@ export default function Welcome({ onStart, onLeaderboard }) {
   const [teamId, setTeamId] = useState("iran");
   const [attackFormation, setAttackFormation] = useState("standard");
   const [defenseFormation, setDefenseFormation] = useState("wall");
+  const [difficulty, setDifficulty] = useState("medium");
   const [previewMode, setPreviewMode] = useState("attack");
   const [stadiumId, setStadiumId] = useState(
     () => ensurePlayer(getLastName()).selectedStadium,
@@ -134,6 +136,7 @@ export default function Welcome({ onStart, onLeaderboard }) {
       botTeamId: teamId === BOT_TEAM_ID ? "argentina" : BOT_TEAM_ID,
       attackFormation,
       defenseFormation,
+      difficulty,
       stadiumId: playStadium,
       discSkinId: playDisc,
     });
@@ -288,6 +291,37 @@ export default function Welcome({ onStart, onLeaderboard }) {
                 </select>
               </div>
             </div>
+
+            <fieldset className="field">
+              <legend>
+                {t.difficulty}
+                <span className="field__value">
+                  {t.difficultyNames[difficulty]}
+                </span>
+              </legend>
+              <div
+                className="diff-tabs"
+                role="radiogroup"
+                aria-label={t.difficulty}
+              >
+                {DIFFICULTY_IDS.map((id) => (
+                  <label
+                    key={id}
+                    className={`diff-tabs__btn ${difficulty === id ? "is-on" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="difficulty"
+                      value={id}
+                      checked={difficulty === id}
+                      onChange={() => setDifficulty(id)}
+                    />
+                    <span>{t.difficultyNames[id]}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="field__hint">{t.difficultyHints[difficulty]}</p>
+            </fieldset>
 
             <div className="field formation-preview-block">
               <div className="formation-preview-block__head">
